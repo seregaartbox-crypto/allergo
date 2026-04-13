@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Трекер Аллергии v2.0</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f2f5;
+            color: #1c1e21;
+        }
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+        }
+        h2, h3 { color: #007bff; margin-top: 0; }
+        
+        /* Стили для динамических блюд */
+        .food-item {
+            display: flex;
+            gap: 10px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            align-items: flex-end;
+            border-left: 4px solid #007bff;
+        }
+        .food-inputs { flex-grow: 1; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 14px; }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        .btn {
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+        .btn-add { background: #e7f3ff; color: #007bff; margin-bottom: 15px; width: 100%; }
+        .btn-add:hover { background: #d0e7ff; }
+        .btn-save { background: #007bff; color: white; width: 100%; font-size: 18px; }
+        .btn-save:hover { background: #0056b3; }
+        .btn-export { background: #28a745; color: white; margin-bottom: 15px; }
+        .btn-remove { background: #ff4d4d; color: white; padding: 10px; }
+
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; }
+        .checkbox-item { background: #eee; padding: 8px 12px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        th, td { border: 1px solid #eee; padding: 12px; text-align: left; }
+        th { background: #f8f9fa; }
+        .severity-badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h2>Дневник Аллергика</h2>
+
+    <div class="card">
+        <h3>Что вы ели?</h3>
+        <div id="foodList">
+            <div class="food-item">
+                <div class="food-inputs">
+                    <div class="group">
+                        <label>Название продукта</label>
+                        <input type="text" class="food-name" list="foodHistory" placeholder="Яблоко...">
+                    </div>
+                    <div class="group">
+                        <label>Порция</label>
+                        <input type="text" class="food-portion" placeholder="150г">
+                    </div>
+                    <div class="group">
+                        <label>Приготовление</label>
+                        <input type="text" class="food-cooking" placeholder="Сырое">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-add" onclick="addFoodField()">+ Добавить еще блюдо</button>
+        <datalist id="foodHistory"></datalist>
+
+        <div class="form-group">
+            <label>Время приема пищи</label>
+            <input type="datetime-local" id="timeEaten">
+        </div>
+
+        <div class="form-group">
+            <label>Напомнить проверить реакцию через (мин)</label>
+            <input type="number" id="alarmMinutes" value="60">
+        </div>
+
+        <hr>
+
+        <div class="form-group">
+            <label>Сила реакции: <span id="severityVal">0</span> / 10</label>
+            <input type="range" id="severity" min="0" max="10" value="0" oninput="document.getElementById('severityVal').innerText = this.value">
+        </div>
+
+        <div class="form-group">
+            <label>Через сколько проявилась (мин)?</label>
+            <input type="number" id="reactionDelay" placeholder="Например, 30">
+        </div>
+
+        <div class="form-group">
+            <label>Места проявления сыпи:</label>
+            <div class="checkbox-group">
+                <label class="checkbox-item"><input type="checkbox" name="rashLocation" value="Шея"> Шея</label>
+                <label class="checkbox-item"><input type="checkbox" name="rashLocation" value="Руки"> Руки</label>
+                <label class="checkbox-item"><input type="checkbox" name="rashLocation" value="Лицо"> Лицо</label>
+                <label class="checkbox-item"><input type="checkbox" name="rashLocation" value="Туловище"> Туловище</label>
+                <label class="checkbox-item"><input type="checkbox" name="rashLocation" value="Ноги"> Ноги</label>
+            </div>
+            <input type="text" id="customLocation" placeholder="Свой вариант..." style="margin-top: 10px;">
+        </div>
+
+        <div class="form-group">
+            <label>Принятые лекарства</label>
+            <input type="text" id="medications" placeholder="Например: Зодак 10мг">
+        </div>
+
+        <button class="btn btn-save" onclick="saveAll()">Сохранить данные</button>
+    </div>
+
+    <div class="card">
+        <h3>История и экспорт</h3>
+        <button class="btn btn-export" onclick="exportCSV()">Выгрузить в Excel (CSV)</button>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Дата/Время</th>
+                        <th>Что ел (состав)</th>
+                        <th>Реакция</th>
+                        <th>Локализация</th>
+                        <th>Лекарства</th>
+                    </tr>
+                </thead>
+                <tbody id="logsTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        window.onload = () => {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('timeEaten').value = now.toISOString().slice(0,16);
+            
+            if ("Notification" in window && Notification.permission !== "granted") {
+                Notification.requestPermission();
+            }
+            renderTable();
+            updateDatalist();
+        };
+
+        function addFoodField() {
+            const div = document.createElement('div');
+            div.className = 'food-item';
+            div.innerHTML = `
+                <div class="food-inputs">
+                    <div class="group"><input type="text" class="food-name" list="foodHistory" placeholder="Продукт"></div>
+                    <div class="group"><input type="text" class="food-portion" placeholder="Порция"></div>
+                    <div class="group"><input type="text" class="food-cooking" placeholder="Приготовление"></div>
+                </div>
+                <button class="btn btn-remove" onclick="this.parentElement.remove()">✕</button>
+            `;
+            document.getElementById('foodList').appendChild(div);
+        }
+
+        function saveAll() {
+            const foodElements = document.querySelectorAll('.food-item');
+            const foods = [];
+            foodElements.forEach(el => {
+                const name = el.querySelector('.food-name').value.trim();
+                if (name) {
+                    foods.push({
+                        name: name,
+                        portion: el.querySelector('.food-portion').value,
+                        cooking: el.querySelector('.food-cooking').value
+                    });
+                }
+            });
+
+            if (foods.length === 0) {
+                alert("Добавьте хотя бы один продукт!");
+                return;
+            }
+
+            const rashCheckboxes = document.querySelectorAll('input[name="rashLocation"]:checked');
+            let locations = Array.from(rashCheckboxes).map(cb => cb.value);
+            const customLoc = document.getElementById('customLocation').value.trim();
+            if (customLoc) locations.push(customLoc);
+
+            const record = {
+                id: Date.now(),
+                foods: foods, // Теперь тут массив объектов
+                timeEaten: document.getElementById('timeEaten').value,
+                severity: parseInt(document.getElementById('severity').value),
+                delay: document.getElementById('reactionDelay').value,
+                locations: locations.join(', '),
+                medications: document.getElementById('medications').value
+            };
+
+            let logs = JSON.parse(localStorage.getItem('allergyLogs')) || [];
+            logs.unshift(record);
+            localStorage.setItem('allergyLogs', JSON.stringify(logs));
+
+            // Будильник по первому продукту в списке
+            const alarmMinutes = parseInt(document.getElementById('alarmMinutes').value);
+            if (alarmMinutes > 0) {
+                setAlarm(alarmMinutes, foods[0].name + (foods.length > 1 ? ' и др.' : ''));
+            }
+
+            // Сброс формы
+            document.getElementById('foodList').innerHTML = `
+                <div class="food-item">
+                    <div class="food-inputs">
+                        <div class="group"><input type="text" class="food-name" list="foodHistory"></div>
+                        <div class="group"><input type="text" class="food-portion"></div>
+                        <div class="group"><input type="text" class="food-cooking"></div>
+                    </div>
+                </div>`;
+            document.getElementById('severity').value = '0';
+            document.getElementById('severityVal').innerText = '0';
+            document.getElementById('reactionDelay').value = '';
+            document.getElementById('medications').value = '';
+            document.getElementById('customLocation').value = '';
+            document.querySelectorAll('input[name="rashLocation"]').forEach(cb => cb.checked = false);
+
+            renderTable();
+            updateDatalist();
+            alert("Запись сохранена!");
+        }
+
+        function setAlarm(minutes, food) {
+            setTimeout(() => {
+                const msg = `Пора проверить реакцию на: ${food}`;
+                if ("Notification" in window && Notification.permission === "granted") {
+                    new Notification("Проверка аллергии", { body: msg });
+                } else {
+                    alert("⏰ Напоминание: " + msg);
+                }
+            }, minutes * 60 * 1000);
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('logsTableBody');
+            tbody.innerHTML = '';
+            const logs = JSON.parse(localStorage.getItem('allergyLogs')) || [];
+
+            logs.forEach(log => {
+                const foodText = log.foods.map(f => `${f.name} (${f.portion}, ${f.cooking})`).join('<br>');
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${new Date(log.timeEaten).toLocaleString('ru-RU')}</td>
+                    <td>${foodText}</td>
+                    <td><span class="severity-badge" style="background:${getSevColor(log.severity)}">${log.severity}</span> 
+                        ${log.delay ? '<br><small>через ' + log.delay + 'м</small>' : ''}</td>
+                    <td>${log.locations}</td>
+                    <td>${log.medications}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function getSevColor(s) {
+            if (s === 0) return '#e2e2e2';
+            if (s < 4) return '#ffeeba';
+            if (s < 8) return '#ffc107';
+            return '#ff4d4d';
+        }
+
+        function updateDatalist() {
+            const logs = JSON.parse(localStorage.getItem('allergyLogs')) || [];
+            const names = [];
+            logs.forEach(l => l.foods.forEach(f => names.push(f.name)));
+            const unique = [...new Set(names)];
+            const dl = document.getElementById('foodHistory');
+            dl.innerHTML = '';
+            unique.forEach(n => {
+                const opt = document.createElement('option');
+                opt.value = n;
+                dl.appendChild(opt);
+            });
+        }
+
+        function exportCSV() {
+            const logs = JSON.parse(localStorage.getItem('allergyLogs')) || [];
+            let csv = "\uFEFFДата;Продукты;Сила реакции;Задержка;Места;Лекарства\n";
+            logs.forEach(l => {
+                const fNames = l.foods.map(f => `${f.name} [${f.portion}]`).join(' + ');
+                csv += `"${l.timeEaten}";"${fNames}";"${l.severity}";"${l.delay}";"${l.locations}";"${l.medications}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "My_Allergy_Data.csv";
+            link.click();
+        }
+    </script>
+</body>
+</html>
